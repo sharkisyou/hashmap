@@ -171,7 +171,6 @@ void put(HashMapChaining *hashMap, int key, const void *val) {
     HashNode *cur = hashMap->buckets[index];
     while (cur) {
         if (cur->pair.key == key) {
-            // 更新现有键的值，使用memcpy而不是strcpy
             // 注意：这里假设调用者已经正确管理了val指向的内存
             // 如果需要深拷贝，调用者应该在传入前处理
             cur->pair.val = (void*)val;
@@ -286,6 +285,7 @@ HashMapIterator initIterator(HashMapChaining *hashMap) {
     iterator.hashMap = hashMap;
     iterator.bucketIndex = 0;
     iterator.currentNode = NULL;
+    iterator.prevNode = NULL;
     iterator.hasNext = false;
     
     if (hashMap != NULL && hashMap->size > 0) {
@@ -332,6 +332,63 @@ void *getValue(HashMapIterator *iterator) {
     return node->pair.val;
 }
 
+/* 删除迭代器当前指向的键值对 */
+void removeCurrent(HashMapIterator *iterator) {
+    if (iterator == NULL || !iterator->hasNext || iterator->currentNode == NULL) {
+        return;
+    }
+    
+    HashMapChaining *hashMap = iterator->hashMap;
+    HashNode *currentNode = (HashNode *)iterator->currentNode;
+    HashNode *prevNode = (HashNode *)iterator->prevNode;
+    size_t bucketIndex = iterator->bucketIndex;
+    
+    // 保存当前节点的下一个节点，用于更新迭代器
+    HashNode *nextNode = currentNode->next;
+    
+    // 从链表中删除当前节点
+    if (prevNode == NULL) {
+        // 当前节点是桶的第一个节点
+        hashMap->buckets[bucketIndex] = nextNode;
+    } else {
+        // 当前节点不是桶的第一个节点
+        ((HashNode *)prevNode)->next = nextNode;
+    }
+    
+    // 如果设置了释放回调函数，则释放val指向的内存
+    if (hashMap->freeVal != NULL && currentNode->pair.val != NULL) {
+        hashMap->freeVal(currentNode->pair.val);
+    }
+    
+    // 释放当前节点
+    free(currentNode);
+    hashMap->size--;
+    
+    // 更新迭代器状态
+    if (nextNode != NULL) {
+        // 如果当前桶中还有下一个节点，移动到该节点
+        iterator->currentNode = nextNode;
+        // prevNode保持不变，因为我们删除了currentNode
+    } else {
+        // 当前桶已经遍历完，需要找下一个非空桶
+        iterator->currentNode = NULL;
+        iterator->prevNode = NULL;
+        
+        // 查找下一个非空桶
+        for (size_t i = bucketIndex + 1; i < hashMap->capacity; i++) {
+            if (hashMap->buckets[i] != NULL) {
+                iterator->bucketIndex = i;
+                iterator->currentNode = hashMap->buckets[i];
+                iterator->hasNext = true;
+                return;
+            }
+        }
+        
+        // 所有桶都已经遍历完
+        iterator->hasNext = false;
+    }
+}
+
 /* 将迭代器移动到下一个元素 */
 void next(HashMapIterator *iterator) {
     if (iterator == NULL || !iterator->hasNext || iterator->currentNode == NULL) {
@@ -339,6 +396,9 @@ void next(HashMapIterator *iterator) {
     }
     
     HashNode *currentNode = (HashNode *)iterator->currentNode;
+    
+    // 更新前驱节点为当前节点
+    iterator->prevNode = iterator->currentNode;
     
     // 如果当前节点有下一个节点，直接移动到下一个节点
     if (currentNode->next != NULL) {
@@ -351,6 +411,7 @@ void next(HashMapIterator *iterator) {
         if (iterator->hashMap->buckets[i] != NULL) {
             iterator->bucketIndex = i;
             iterator->currentNode = iterator->hashMap->buckets[i];
+            iterator->prevNode = NULL; // 新桶的第一个节点没有前驱
             return;
         }
     }
@@ -358,5 +419,6 @@ void next(HashMapIterator *iterator) {
     // 所有桶都已经遍历完
     iterator->hasNext = false;
     iterator->currentNode = NULL;
+    iterator->prevNode = NULL;
 }
 

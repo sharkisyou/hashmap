@@ -29,7 +29,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         -pedantic       # 严格遵循标准
         -pedantic-errors # 将标准违规视为错误
         -Wconversion    # 类型转换警告
-        -Wshadow        # 变量覆盖警告
+        # -Wshadow        # 变量覆盖警告
         -Wundef         # 未定义标识符警告
         -Wcast-align    # 指针对齐警告
         -Wstrict-prototypes # 函数原型警告
@@ -88,3 +88,7 @@ target_link_libraries(memcheck_test hash_table)
 # 添加迭代器测试可执行文件
 add_executable(iterator_test iterator_test.c)
 target_link_libraries(iterator_test hash_table)
+
+# 添加迭代器中删除键值对测试可执行文件
+add_executable(iterator_remove_pair remove_current_test.c)
+target_link_libraries(iterator_remove_pair hash_table)

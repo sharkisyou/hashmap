@@ -16,8 +16,9 @@ typedef struct HashMapChaining HashMapChaining;
 /* 哈希表迭代器 */
 typedef struct {
     HashMapChaining *hashMap;  // 迭代器所属的哈希表
-    size_t bucketIndex;           // 当前桶索引tIndex;           // 当前桶索引 bucketIndex;           // 当前桶索引
+    size_t bucketIndex;        // 当前桶索引
     void *currentNode;         // 当前节点指针
+    void *prevNode;           // 前驱节点指针，用于删除当前节点
     bool hasNext;              // 是否有下一个元素
 } HashMapIterator;
 
@@ -154,5 +155,15 @@ void *getValue(HashMapIterator *iterator);
  * @param iterator 迭代器的指针
  */
 void next(HashMapIterator *iterator);
+
+/**
+ * @brief 删除迭代器当前指向的键值对
+ *
+ * 该函数删除迭代器当前指向的键值对，并将迭代器移动到下一个元素。
+ * 注意：调用此函数后，不需要再调用next函数，因为迭代器已经移动到下一个元素。
+ *
+ * @param iterator 迭代器指针
+ */
+void removeCurrent(HashMapIterator *iterator);
 
 #endif // HASH_TABLE_H
